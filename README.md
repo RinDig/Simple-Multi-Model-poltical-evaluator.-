@@ -1,4 +1,4 @@
-# Multi-Model Political Bias Analyzer
+# Multi-Model Political Bias Analyzer Script
 
 This project is a Python script that analyzes political bias in text using multiple AI models: OpenAI's GPT, Anthropic's Claude, and Google's Gemini.
 
