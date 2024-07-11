@@ -1,0 +1,98 @@
+import pandas as pd
+from openai import OpenAI
+import anthropic
+import google.generativeai as genai
+
+# Load the data
+def load_data(file_name, column_name):
+    df = pd.read_csv(file_name)
+    print("Available columns:", df.columns.tolist())
+    if column_name not in df.columns:
+        raise ValueError(f"Column '{column_name}' not found in the CSV file. Please choose from the available columns.")
+    return df[column_name].tolist()
+
+# Set up API clients
+openai_client = OpenAI(api_key='')  # Replace with your actual OpenAI API key
+anthropic_client = anthropic.Anthropic(api_key='')  # Replace with your actual Anthropic API key
+genai.configure(api_key='')  # Replace with your actual Gemini API key
+
+# Analyze text with OpenAI
+def analyze_text_openai(text):
+    try:
+        response = openai_client.chat.completions.create(
+            model="gpt-3.5-turbo",  # You can change this to "gpt-4" if you have access
+            messages=[
+                {"role": "system", "content": "You are an AI trained to analyze political bias in text."},
+                {"role": "user", "content": f"Analyze the following text for political bias. Categorize it as Liberal, Conservative, or Neutral, and briefly explain why:\n\n{text}"}
+            ]
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return f"Error in OpenAI analysis: {str(e)}"
+
+# Analyze text with Anthropic (Claude-3)
+def analyze_text_anthropic(text):
+    try:
+        message = anthropic_client.messages.create(
+            model="claude-3-opus-20240229",
+            max_tokens=1000,
+            temperature=0,
+            system="You are an AI trained to analyze political bias in text.",
+            messages=[
+                {"role": "user", "content": f"Analyze the following text for political bias. Categorize it as Liberal, Conservative, or Neutral, and briefly explain why:\n\n{text}"}
+            ]
+        )
+        return message.content[0].text
+    except Exception as e:
+        return f"Error in Anthropic analysis: {str(e)}"
+
+# Analyze text with Gemini
+def analyze_text_gemini(text):
+    try:
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        chat = model.start_chat(history=[])
+        response = chat.send_message(
+            f"Analyze the following text for political bias. Categorize it as Liberal, Conservative, or Neutral, and briefly explain why:\n\n{text}",
+            generation_config=genai.types.GenerationConfig(
+                temperature=0,
+                top_p=0.95,
+                top_k=64,
+                max_output_tokens=1000
+            )
+        )
+        return response.text
+    except Exception as e:
+        return f"Error in Gemini analysis: {str(e)}"
+
+# Main process
+def run_analysis(column_name):
+    articles = load_data('ModelContext.csv', column_name)
+    results = []
+    
+    for article in articles:
+        openai_analysis = analyze_text_openai(article)
+        anthropic_analysis = analyze_text_anthropic(article)
+        gemini_analysis = analyze_text_gemini(article)
+        results.append({
+            'article': article, 
+            'openai_analysis': openai_analysis,
+            'anthropic_analysis': anthropic_analysis,
+            'gemini_analysis': gemini_analysis
+        })
+    
+    return results
+
+# Run the analysis
+try:
+    results = run_analysis('clean text')  # Try with 'clean text' first
+except ValueError as e:
+    print(e)
+    column_name = input("Please enter the correct column name: ")
+    results = run_analysis(column_name)
+
+# Print or process results
+for result in results:
+    print(f"Article: {result['article'][:100]}...")  # Print first 100 characters of the article
+    print(f"OpenAI Analysis: {result['openai_analysis']}")
+    print(f"Anthropic Analysis: {result['anthropic_analysis']}")
+    print(f"Gemini Analysis: {result['gemini_analysis']}\n")
